@@ -6,7 +6,9 @@ use crate::{
         reduction::{Assumption, Reduction},
         GameHop,
     },
-    identifier::game_ident::GameConstIdentifier,
+    identifier::{
+        game_ident::GameConstIdentifier, theorem_ident::TheoremConstIdentifier, Identifier,
+    },
     package::{Composition, Edge, Export, Package},
     packageinstance::instantiate::InstantiationContext,
     proof::Proof,
@@ -113,6 +115,41 @@ mod instantiate {
             params: new_params,
             ..pkg_inst
         }
+    }
+}
+
+impl From<Composition> for GameInstance {
+    fn from(comp: Composition) -> Self {
+        let game_inst_name = comp.name.to_string();
+        let theorem_name = comp.name.to_string();
+        let params = comp
+            .consts
+            .iter()
+            .map(|(name, ty)| {
+                let thmident = TheoremConstIdentifier {
+                    theorem_name: theorem_name.to_string(),
+                    name: name.clone(),
+                    ty: ty.clone(),
+                    inst_info: None,
+                };
+
+                let value: Expression = Identifier::TheoremIdentifier(thmident.into()).into();
+                (
+                    GameConstIdentifier {
+                        game_name: comp.name().to_string(),
+                        name: name.clone(),
+                        ty: ty.clone(),
+                        assigned_value: Some(Box::new(value.clone())),
+                        inst_info: None,
+                        game_inst_name: Some(game_inst_name.clone()),
+                        theorem_name: Some(theorem_name.clone()),
+                    },
+                    value,
+                )
+            })
+            .collect();
+
+        GameInstance::new(game_inst_name, theorem_name, comp, Vec::new(), params)
     }
 }
 
