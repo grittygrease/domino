@@ -13,6 +13,36 @@ use crate::parser::{
 use std::collections::HashMap;
 
 #[test]
+fn context_oracle_mismatch_precedes_later_reduction_error() {
+    let pkgs = packages::parse_files(&[
+        "reduction-context-oracle/Context.pkg.ssp",
+        "reduction-context-oracle/Choices.pkg.ssp",
+    ]);
+    let games = games::parse_files(
+        &[
+            "reduction-context-oracle/Assumption.comp.ssp",
+            "reduction-context-oracle/Left.comp.ssp",
+            "reduction-context-oracle/Right.comp.ssp",
+        ],
+        &pkgs,
+    );
+    let source = theorems::read_file("reduction-context-oracle.ssp");
+    let source = source.replace(
+        "    }\n}",
+        "        reduction left right {
+            assumption Missing
+            map a0 left { x: x }
+            map a1 right { x: x }
+        }
+    }\n}",
+    );
+    assert!(matches!(
+        theorems::parse_fails(&source, "priority.ssp", &pkgs, &games),
+        ParseTheoremError::ReductionContextOracleMismatch(_)
+    ));
+}
+
+#[test]
 fn missing_game_instance_params_block() {
     let games = games::parse_files(&["tiny.ssp"], &HashMap::new());
     let err = theorems::parse_file_fails("empty-params.ssp", &HashMap::new(), &games);
@@ -40,6 +70,7 @@ fn missing_game_instance_params_block() {
     let report = miette::Report::new(err);
     println!("{report:?}");
 }
+
 #[test]
 fn fail_reduction_assumption_is_second() {
     let pkgs = packages::parse_files(&[
