@@ -280,8 +280,8 @@ fn check_context_oracles(
                 import_name: left.name().to_string(),
                 left_oracle_name: left_name.to_string(),
                 right_oracle_name: right_name.to_string(),
-                left_signature: left_sig.to_oracle_type().to_string(),
-                right_signature: right_sig.to_oracle_type().to_string(),
+                left_signature: left_sig.to_oracle_type(),
+                right_signature: right_sig.to_oracle_type(),
             }
             .into());
         }
@@ -570,7 +570,7 @@ fn check_construction_exports(
             left_signature: left
                 .map(|export| export.sig().to_oracle_type().to_string())
                 .unwrap_or_else(|| "not exported".to_string()),
-            right_signature: right.sig().to_oracle_type().to_string(),
+            right_signature: right.sig().to_oracle_type(),
         }
         .into()
     };
@@ -715,20 +715,27 @@ fn check_mapping_wires(
     construction: &GameInstance,
     check_oracle_names: bool,
 ) -> Result<(), ParseTheoremError> {
-    // Preserve the per-package order: forward wires, then reverse wires.
     for entry in entries {
-        for check in [check_construction_wires, check_assumption_wires] {
-            check(
-                ctx,
-                span,
-                entries,
-                assumption,
-                construction,
-                &entry.construction_offset,
-                &entry.assumption_offset,
-                check_oracle_names,
-            )?;
-        }
+        check_construction_wires(
+            ctx,
+            span,
+            entries,
+            assumption,
+            construction,
+            &entry.construction_offset,
+            &entry.assumption_offset,
+            check_oracle_names,
+        )?;
+        check_assumption_wires(
+            ctx,
+            span,
+            entries,
+            assumption,
+            construction,
+            &entry.construction_offset,
+            &entry.assumption_offset,
+            check_oracle_names,
+        )?;
     }
     Ok(())
 }

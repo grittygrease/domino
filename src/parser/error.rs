@@ -681,7 +681,7 @@ pub struct ReductionExportMismatchError {
     pub right_game_inst_name: String,
     pub oracle_name: String,
     pub left_signature: String,
-    pub right_signature: String,
+    pub right_signature: OracleSigType,
 }
 
 #[derive(Debug, Diagnostic, Error)]
@@ -702,8 +702,8 @@ pub struct ReductionContextOracleMismatchError {
     pub import_name: String,
     pub left_oracle_name: String,
     pub right_oracle_name: String,
-    pub left_signature: String,
-    pub right_signature: String,
+    pub left_signature: OracleSigType,
+    pub right_signature: OracleSigType,
 }
 
 #[derive(Debug, Diagnostic, Error)]
