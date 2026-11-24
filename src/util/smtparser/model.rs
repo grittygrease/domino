@@ -38,8 +38,12 @@ impl SmtParser for SmtModel {
         )))
     }
 
+    /// An integer that does not fit `i32` is kept verbatim as an atom.
     fn handle_integer(&mut self, content: &str) -> Result<ModelExtractorState> {
-        Ok(ModelExtractorState::Integer(content.parse().unwrap()))
+        Ok(match content.parse() {
+            Ok(int) => ModelExtractorState::Integer(int),
+            Err(_) => ModelExtractorState::SmtExpr(SmtExpr::Atom(content.to_string())),
+        })
     }
 
     fn handle_boolean(&mut self, content: &str) -> Result<ModelExtractorState> {
