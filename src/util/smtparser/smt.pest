@@ -17,11 +17,12 @@ string = { (!"\"" ~ ANY)* }
 
 boolean = { "true" | "false" }
 integer = @{"-"? ~ ASCII_DIGIT+ }
+bvlit = @{ "#b" ~ ("0" | "1")+ | "#x" ~ ASCII_HEX_DIGIT+ }
 ty = { "Int" | "Bool" | sexp }
 list = { "(" ~ sexp*~ ")" }
 
 // Big Or, Fallback Entries last!
-sexp = _{ sampleid | list | integer | boolean | stringlit | atom }
+sexp = _{ sampleid | list | integer | bvlit | boolean | stringlit | atom }
 
 stmt = { defun | define_game_invariant | define_package_invariant | define_state_relation | define_lemma | sexp }
 stmts = { SOI ~ stmt+ ~ EOI }

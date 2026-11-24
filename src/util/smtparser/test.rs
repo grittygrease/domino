@@ -34,3 +34,10 @@ fn parsing_half_model_fails() {
 
     assert_matches!(parse_model(&content), Err(_));
 }
+
+#[test]
+fn parses_bitvector_and_sequence_values() {
+    let content = "(\n(define-fun b () (_ BitVec 8) #b00000001)\n(define-fun h () (_ BitVec 8) #xff)\n(define-fun s () (Seq (_ BitVec 8)) (seq.++ (seq.unit #b00000000) (as seq.empty (Seq (_ BitVec 8)))))\n)\n";
+    let (_model, length) = parse_model(content).unwrap();
+    assert_eq!(length, content.trim_end().len());
+}

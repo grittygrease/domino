@@ -9,6 +9,10 @@ pub enum Error {
     Utf8Error(#[from] std::string::FromUtf8Error),
     #[error("io error: {0}")]
     IOError(#[from] std::io::Error),
+    #[error("solver reply to (get-model) is complete but not a parsable model: {0}")]
+    ModelUnparsable(String),
+    #[error("solver output closed before a model was read: {0}")]
+    ModelStreamClosed(String),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -129,10 +133,13 @@ impl Communicator {
         }
     }
 
+    /// Reads one model. A reply that is a complete expression but not a parsable model is an
+    /// error, as is end of output, so reading the model of a failed claim cannot block.
     pub fn read_model(&mut self) -> Result<(usize, String, SmtModel)> {
         loop {
             self.maybe_resize();
-            self.pos += self.stdout.read(&mut self.buf[self.pos..])?;
+            let read_cnt = self.stdout.read(&mut self.buf[self.pos..])?;
+            self.pos += read_cnt;
             let data = String::from_utf8(self.buf[..self.pos].to_vec())?;
 
             if let Ok((model, cnt)) = parse_model(&data) {
@@ -145,6 +152,12 @@ impl Communicator {
                 self.buf[..self.pos].copy_from_slice(rest_bs);
 
                 return Ok((cnt, modelstring, model));
+            }
+            if holds_complete_expression(&data) {
+                return Err(Error::ModelUnparsable(data));
+            }
+            if read_cnt == 0 {
+                return Err(Error::ModelStreamClosed(data));
             }
         }
     }
@@ -210,5 +223,72 @@ impl std::fmt::Write for Communicator {
         } else {
             Ok(())
         }
+    }
+}
+
+/// Whether `data` begins with one complete parenthesized expression. Parentheses inside
+/// string literals and quoted symbols do not count.
+fn holds_complete_expression(data: &str) -> bool {
+    let mut depth = 0usize;
+    let mut in_string = false;
+    let mut in_quoted = false;
+    for c in data.chars() {
+        match c {
+            '"' if !in_quoted => in_string = !in_string,
+            '|' if !in_string => in_quoted = !in_quoted,
+            '(' if !in_string && !in_quoted => depth += 1,
+            ')' if !in_string && !in_quoted => {
+                if depth <= 1 {
+                    return true;
+                }
+                depth -= 1;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cat_communicator(input: &str) -> Communicator {
+        let mut cmd = std::process::Command::new("printf");
+        cmd.arg("%s")
+            .arg(input)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped());
+        Communicator::new_from_cmd_without_transcript(cmd).expect("spawn printf")
+    }
+
+    #[test]
+    fn complete_expression_detection() {
+        assert!(!holds_complete_expression(""));
+        assert!(!holds_complete_expression("(model (define-fun a () Int"));
+        assert!(holds_complete_expression("(error \"no model)\")\n"));
+        assert!(!holds_complete_expression("(error \"no model)"));
+        assert!(holds_complete_expression("(|a)b| 1)"));
+        assert!(holds_complete_expression("((define-fun a () Int 1))"));
+    }
+
+    #[test]
+    fn complete_unparsable_reply_is_an_error_not_a_hang() {
+        let mut comm = cat_communicator("((define-fun a () (_ BitVec 3) #o7))\n");
+        let got = comm.read_model();
+        assert!(
+            matches!(got, Err(Error::ModelUnparsable(_))),
+            "{:?}",
+            got.map(|r| r.1)
+        );
+    }
+
+    #[test]
+    fn closed_output_is_an_error_not_a_hang() {
+        let mut comm = cat_communicator("(model (define-fun a () Int");
+        assert!(matches!(
+            comm.read_model(),
+            Err(Error::ModelStreamClosed(_))
+        ));
     }
 }

@@ -205,7 +205,7 @@ where
 
     fn rule_expr(&mut self, p: Pair<Rule>) -> Result<Self::Expr, E> {
         match p.as_rule() {
-            Rule::atom => self.handle_atom(p.as_str()),
+            Rule::atom | Rule::bvlit => self.handle_atom(p.as_str()),
             Rule::integer => self.handle_integer(p.as_str()),
             Rule::boolean => self.handle_boolean(p.as_str()),
             Rule::string => self.handle_string(p.as_str()),
