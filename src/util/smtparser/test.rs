@@ -34,3 +34,18 @@ fn parsing_half_model_fails() {
 
     assert_matches!(parse_model(&content), Err(_));
 }
+
+#[test]
+fn parses_bitvector_and_sequence_values() {
+    let content = "(\n(define-fun b () (_ BitVec 8) #b00000001)\n(define-fun h () (_ BitVec 8) #xff)\n(define-fun s () (Seq (_ BitVec 8)) (seq.++ (seq.unit #b00000000) (as seq.empty (Seq (_ BitVec 8)))))\n)\n";
+    let (_model, length) = parse_model(content).unwrap();
+    assert_eq!(length, content.trim_end().len());
+}
+
+#[test]
+fn keeps_integers_wider_than_i32() {
+    let content = "(\n(define-fun wide () Int 123456789012345678901234567890)\n(define-fun small () Int 7)\n)\n";
+    let (model, _length) = parse_model(content).unwrap();
+    assert_eq!(model.get_value_as_int("small"), Some(7));
+    assert_eq!(model.get_value_as_int("wide"), None);
+}
